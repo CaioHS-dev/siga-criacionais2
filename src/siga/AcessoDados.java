@@ -28,7 +28,7 @@ package siga;
 public class AcessoDados {
 
     // PROBLEMA 1: conexão e comando criados separadamente, sem garantia de coerência.
-    public void conectar(String fornecedor) {
+    /*public void conectar(String fornecedor) {
         Conexao conexao;
         Comando comando;
         if (fornecedor.equals("MYSQL")) {
@@ -43,10 +43,12 @@ public class AcessoDados {
         //   comando = new ComandoPostgreSQL();  // <- incoerência não detectada!
         conexao.abrir();
         comando.executar("SELECT * FROM aluno");
-    }
+    }*/
+
+
 
     // PROBLEMA 2: método telescópico — muitos parâmetros opcionais.
-    public String montarConsulta(String tabela, String filtro, String ordenacao,
+    /*public String montarConsulta(String tabela, String filtro, String ordenacao,
                                  int limite, int offset, int timeoutSegundos,
                                  boolean somenteAtivos) {
         StringBuilder sb = new StringBuilder("SELECT * FROM ").append(tabela);
@@ -56,5 +58,27 @@ public class AcessoDados {
         if (limite > 0) sb.append(" LIMIT ").append(limite);
         if (offset > 0) sb.append(" OFFSET ").append(offset);
         return sb.toString();
+    }*/
+   // Instância estática única (Singleton)
+    private static AcessoDados instancia;
+
+    // Construtor privado para barrar o "new" externo
+    private AcessoDados() {}
+
+    // Ponto de acesso global
+    public static synchronized AcessoDados getInstancia() {
+        if (instancia == null) {
+            instancia = new AcessoDados();
+        }
+        return instancia;
+    }
+
+    // Recebe a fábrica para garantir coerência de fornecedor (Abstract Factory)
+    public void conectar(FabricaBanco fabrica) {
+        Conexao conexao = fabrica.criarConexao();
+        Comando comando = fabrica.criarComando();
+
+        conexao.abrir();
+        comando.executar("SELECT * FROM aluno");
     }
 }
