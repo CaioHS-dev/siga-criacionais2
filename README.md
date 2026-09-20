@@ -1,56 +1,112 @@
-# SIGA — Atividade de Padrões Criacionais (código inicial)
+# Documentação siga-criacionais
 
-**Técnicas de Programação II (TP2) · Aula 6** — CST em Desenvolvimento de Software Multiplataforma · Fatec de Porto Ferreira
+## 1. Abstract Factory
 
-Este é o **código inicial** da atividade prática da Aula 6. Ele contém, de forma **proposital**, três problemas de design que você deverá resolver aplicando, em conjunto, os padrões **Abstract Factory**, **Builder** e **Singleton**. O programa compila e executa — o problema não é o funcionamento, e sim a coerência, a legibilidade e o controle da criação de objetos.
+* No método `conectar`, o código usava `if` e `else` para criar a conexão e o comando do banco de dados separados.
+* Nada no código impede que alguém instancie uma ConexaoMySQL e um ComandoPostgreSQL.
+* Criei uma interface (`FabricaBanco`) e uma classe para cada tipo (`FabricaMySQL` e `FabricaPostgreSQL`) que implementa e sobrescreve os métodos da interface. Agora, quem cria a conexão e o comando juntos é essa interface. Se eu chamo a classe do MySQL, ela me devolve tudo do MySQL. Fica impossível misturar as coisas por engano.
 
-## Estrutura do projeto
+---
 
-```
-siga-criacionais/
-└── src/
-    └── siga/
-        ├── Conexao.java              (interface — produto; pronta)
-        ├── Comando.java              (interface — produto; pronta)
-        ├── ObjetosAcessoDados.java   (implementações MySQL e PostgreSQL; prontas)
-        ├── AcessoDados.java          (contém os três problemas a refatorar)
-        └── Main.java                 (demonstra os problemas em execução)
-```
+## 2. Builder
 
-## Como compilar e executar
+* O método `montarConsulta` recebe 7 argumentos seguidos: String tabela, String filtro, String ordenacao, int limite, int offset, int timeoutSegundos, boolean somenteAtivos.   
+* O código ficava ilegível. Quando olhava no `Main`, via números como `50, 0, 30, true` e ninguém entendia o que cada número fazia sem abrir o outro arquivo para conferir. Além disso, era possível trocar a ordem de dois números sem querer e não acusaria erros.
+* Criei o `ConsultaBuilder`, agora eu digo claramente o que quero com métodos que dão para ler em português: `.comFiltro()`, `.comLimite()`, `.somenteAtivos()`, etc. Se eu não precisar de um campo, eu simplesmente não chamo, em vez de ficar passando `null` ou `0` manualmente.
 
-Pré-requisito: JDK 17 ou superior (`java -version` para verificar).
+---
 
-```bash
-# 1. Compilar (a saída vai para a pasta "bin")
-javac -d bin src/siga/*.java
+## 3. Singleton
 
-# 2. Executar
-java -cp bin siga.Main
-```
+* Qualquer parte do programa podia mandar um `new AcessoDados()` e criar quantos pontos de acesso ao banco quisesse.
+* Deixar um monte de conexão e gerenciador solto pelo sistema consome memória à toa e faz a gente perder o controle de quem tá mexendo no banco. Tinha que ser uma porta de entrada só para todo mundo.
+* Tranquei o construtor dele deixando `private` para ninguém de fora conseguir dar `new`. No lugar disso, guardei uma cópia única dentro da própria classe e criei o método `getInstancia()`. Agora, o sistema inteiro compartilha sempre a mesma instância controlada.
 
-## Os problemas propositais
+---
 
-| Local | Problema | Padrão que resolve |
-|---|---|---|
-| `AcessoDados.conectar` | Cria conexão e comando por `if` e `new` separados, sem garantir que sejam do mesmo fornecedor (dá para misturar MySQL e PostgreSQL). | **Abstract Factory** |
-| `AcessoDados.montarConsulta` | Método com muitos parâmetros opcionais (construtor telescópico), ilegível e propenso a erro de ordem. | **Builder** |
-| `AcessoDados` | Nada garante um único ponto de acesso ao banco no sistema. | **Singleton** |
+# Diagrama de Classes UML
 
-## Sua tarefa
+```mermaid
+classDiagram
+    direction TB
 
-Siga as etapas da ficha de atividade prática:
+    %% SINGLETON
+    class AcessoDados {
+        -AcessoDados instancia$
+        -AcessoDados()
+        +getInstancia()$ AcessoDados
+        +conectar(fabrica: FabricaBanco) void
+    }
 
-1. **Analisar** o código inicial e identificar a possibilidade de misturar fornecedores e o método de consulta telescópico.
-2. **Abstract Factory:** criar uma fábrica abstrata (por exemplo, `FabricaBanco`) com `FabricaMySQL` e `FabricaPostgreSQL`, cada uma produzindo uma `Conexao` e um `Comando` **do mesmo fornecedor**. O `AcessoDados` passa a receber uma fábrica e criar a família coerente a partir dela.
-3. **Builder:** criar um `ConsultaBuilder` com métodos nomeados e encadeáveis para os parâmetros opcionais (`comFiltro`, `comOrdenacao`, `comLimite`, etc.) e um `construir()` que devolve a consulta. Substitui o método telescópico.
-4. **Singleton:** transformar o `AcessoDados` em um Singleton, com construtor privado, instância estática e método de acesso.
-5. **Desenhar** o diagrama de classes da solução (fábrica de banco, produtos, builder e acesso), evidenciando os três padrões.
+    %% ABSTRACT FACTORY
+    class FabricaBanco {
+        <<interface>>
+        +criarConexao() Conexao
+        +criarComando() Comando
+    }
 
-## Critério de sucesso
+    class FabricaMySQL {
+        +criarConexao() Conexao
+        +criarComando() Comando
+    }
 
-Ao final: (a) deve ser **impossível** combinar uma conexão de um fornecedor com um comando de outro; (b) a montagem da consulta deve ser **legível**, com passos nomeados; e (c) deve existir **um único** ponto de acesso ao banco, obtido de forma controlada.
+    class FabricaPostgreSQL {
+        +criarConexao() Conexao
+        +criarComando() Comando
+    }
 
-## Padrão de entrega
+    %% PRODUTOS
+    class Conexao {
+        <<interface>>
+        +abrir() void
+    }
 
-Conforme a ficha de atividade prática: identificadores em português, um arquivo `.java` por classe pública, código formatado, entrega no repositório Git com README e commits descritivos. O uso de IA para gerar o código é proibido nesta atividade (ver seção 5.3 da ficha).
+    class Comando {
+        <<interface>>
+        +executar(sql: String) void
+    }
+
+    class ConexaoMySQL { +abrir() void }
+    class ComandoMySQL { +executar(sql: String) void }
+    class ConexaoPostgreSQL { +abrir() void }
+    class ComandoPostgreSQL { +executar(sql: String) void }
+
+    %% BUILDER
+    class ConsultaBuilder {
+        -String tabela
+        -String filtro
+        -String ordenacao
+        -int limite
+        -int offset
+        -int timeoutSegundos
+        -boolean somenteAtivos
+        +ConsultaBuilder(tabela: String)
+        +comFiltro(filtro: String) ConsultaBuilder
+        +comOrdenacao(ordenacao: String) ConsultaBuilder
+        +comLimite(limite: int) ConsultaBuilder
+        +comOffset(offset: int) ConsultaBuilder
+        +comTimeout(timeout: int) ConsultaBuilder
+        +somenteAtivos() ConsultaBuilder
+        +construir() String
+    }
+
+    %% RELACIONAMENTOS ABSTRACT FACTORY
+    FabricaBanco <|.. FabricaMySQL
+    FabricaBanco <|.. FabricaPostgreSQL
+
+    Conexao <|.. ConexaoMySQL
+    Conexao <|.. ConexaoPostgreSQL
+
+    Comando <|.. ComandoMySQL
+    Comando <|.. ComandoPostgreSQL
+
+    FabricaMySQL ..> ConexaoMySQL : produz
+    FabricaMySQL ..> ComandoMySQL : produz
+    FabricaPostgreSQL ..> ConexaoPostgreSQL : produz
+    FabricaPostgreSQL ..> ComandoPostgreSQL : produz
+
+    %% RELACIONAMENTOS SINGLETON E DEPENDÊNCIAS
+    AcessoDados --> AcessoDados : instancia única
+    AcessoDados ..> FabricaBanco : consome
+    AcessoDados ..> Conexao : usa
+    AcessoDados ..> Comando : usa
